@@ -1,0 +1,174 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Media Interaktif Perpangkatan & Logaritma v10</title>
+  <style>
+    body { font-family: sans-serif; background: #e0f0ff; margin: 0; padding: 0; }
+    .tabs { display: flex; }
+    .tab { flex: 1; text-align: center; padding: 1em; font-weight: bold; background: #cce4ff; cursor: pointer; }
+    .tab.active { background: #99ccff; }
+    .scroll-container { height: 500px; overflow: auto; border: 1px solid #aaa; }
+    table { border-collapse: collapse; }
+    th, td { border: 1px solid #ccc; width: 60px; height: 40px; text-align: center; }
+    .sticky-col { position: sticky; left: 0; background: pink; z-index: 2; cursor: pointer; }
+    .sticky-row { position: sticky; top: 0; background: pink; z-index: 3; cursor: pointer; }
+    .corner-cell { background: pink; position: sticky; top: 0; left: 0; z-index: 4; }
+    .input-area { background: #fff; padding: 1em; border-radius: 10px; margin-top: 1em; }
+    .input-area input { width: 80px; margin: 0 10px; }
+  </style>
+</head>
+<body>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchMode('power')">Perpangkatan</div>
+  <div class="tab" onclick="switchMode('log')">Logaritma</div>
+</div>
+
+<div class="container">
+  <div class="scroll-container" id="table-container"></div>
+
+  <div class="input-area">
+    <label>Basis: <input type="number" id="input-basis" /></label>
+    <span id="second-label">Pangkat:</span>
+    <input type="number" id="input-second" />
+    <div id="output">Hasil: </div>
+  </div>
+</div>
+
+<script>
+const MIN = -20, MAX = 20;
+let mode = 'power';
+let selectedBasis = null;
+let selectedSecond = null;
+
+function switchMode(newMode) {
+  mode = newMode;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab')[mode === 'power' ? 0 : 1].classList.add('active');
+  document.getElementById('second-label').innerText = mode === 'power' ? 'Pangkat:' : 'Numerus:';
+  selectedBasis = null;
+  selectedSecond = null;
+  generateTable();
+  updateResult();
+}
+
+function generateTable() {
+  const container = document.getElementById('table-container');
+  const table = document.createElement('table');
+  const headRow = document.createElement('tr');
+  const corner = document.createElement('th');
+  corner.classList.add('corner-cell');
+  corner.textContent = mode === 'power' ? 'Basis & Pangkat' : 'Basis & Hasil';
+  headRow.appendChild(corner);
+
+  for (let x = MIN; x <= MAX; x++) {
+    const th = document.createElement('th');
+    th.classList.add('sticky-row');
+    th.textContent = x;
+    th.addEventListener('click', () => {
+      selectedSecond = x;
+      document.getElementById('input-second').value = x;
+      updateResult();
+    });
+    headRow.appendChild(th);
+  }
+  table.appendChild(headRow);
+
+  for (let y = MIN; y <= MAX; y++) {
+    const row = document.createElement('tr');
+    const th = document.createElement('th');
+    th.classList.add('sticky-col');
+    th.textContent = y;
+    th.addEventListener('click', () => {
+      selectedBasis = y;
+      document.getElementById('input-basis').value = y;
+      updateResult();
+    });
+    row.appendChild(th);
+
+    for (let x = MIN; x <= MAX; x++) {
+      const td = document.createElement('td');
+      const value = Math.pow(y, x);
+      td.textContent = isFinite(value) ? value : '';
+      td.dataset.x = x;
+      td.dataset.y = y;
+      td.addEventListener('click', () => {
+        if (mode === 'log' && selectedBasis !== null) {
+          selectedSecond = parseFloat(td.textContent);
+          document.getElementById('input-basis').value = selectedBasis;
+          document.getElementById('input-second').value = selectedSecond;
+          updateResult();
+        }
+      });
+      row.appendChild(td);
+    }
+    table.appendChild(row);
+  }
+  container.innerHTML = '';
+  container.appendChild(table);
+}
+
+function updateResult() {
+  const basis = parseFloat(document.getElementById('input-basis').value);
+  const second = parseFloat(document.getElementById('input-second').value);
+
+  let selector = '';
+  let hasil = '';
+  let table = document.querySelector('table');
+
+  // Reset warna
+  document.querySelectorAll('.sticky-col, .sticky-row').forEach(el => el.style.backgroundColor = 'pink');
+  document.querySelectorAll('td').forEach(td => td.style.backgroundColor = '');
+
+  if (!isNaN(basis)) {
+    document.querySelectorAll(`.sticky-col`).forEach(th => {
+      if (parseInt(th.textContent) === basis) th.style.backgroundColor = 'red';
+    });
+    document.querySelectorAll(`td[data-y='${basis}']`).forEach(td => td.style.backgroundColor = 'orange');
+  }
+
+  if (!isNaN(second)) {
+    document.querySelectorAll(`.sticky-row`).forEach(th => {
+      if (parseInt(th.textContent) === second) th.style.backgroundColor = 'red';
+    });
+    document.querySelectorAll(`td[data-x='${second}']`).forEach(td => td.style.backgroundColor = 'orange');
+  }
+
+  if (!isNaN(basis) && !isNaN(second)) {
+    if (mode === 'power') {
+      selector = `td[data-x='${second}'][data-y='${basis}']`;
+      hasil = Math.pow(basis, second);
+    } else {
+      hasil = Math.log(second) / Math.log(basis);
+      const rounded = Math.round(hasil);
+      const valueAtCell = Math.pow(basis, rounded);
+      if (Math.abs(valueAtCell - second) < 0.0001) {
+        selector = `td[data-x='${rounded}'][data-y='${basis}']`;
+        hasil = rounded;
+      } else {
+        selector = '';
+        hasil = 'Numerus tidak ditemukan';
+      }
+    }
+
+    if (selector) {
+      const cell = document.querySelector(selector);
+      if (cell) cell.style.backgroundColor = 'lightgreen';
+    }
+  }
+
+  document.getElementById('output').innerText = 'Hasil: ' +
+    (typeof hasil === 'number' ? hasil : hasil);
+}
+
+document.getElementById('input-basis').addEventListener('input', updateResult);
+document.getElementById('input-second').addEventListener('input', updateResult);
+
+switchMode('power');
+</script>
+
+</body>
+</html>
